@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Dict, List, Tuple, Iterable, Optional
+from typing import Dict, List, Tuple, Iterable, Optional, Set
 
 Node = str
 
@@ -166,3 +166,91 @@ def build_activation_choices(processes: List[Process], intervals: List[Interval]
             )
 
     return choices
+
+def is_stn_feasible(nodes: List[Node], edges: List[Edge]) -> bool:
+    """
+    Return True iff the STN (difference constraints graph) has no negative cycle.
+
+    Trick: add a super-source 'SS' with 0-weight edges to all nodes, then run
+    Bellman-Ford once. If any negative cycle exists anywhere, it will be reachable.
+    """
+    super_source = "__SS__"
+    if super_source in nodes:
+        raise ValueError("Super-source name collision. Rename __SS__ to something unique.")
+
+    nodes2 = nodes + [super_source]
+    edges2 = edges + [Edge(super_source, n, 0.0) for n in nodes]
+
+    try:
+        _ = bellman_ford(nodes2, edges2, super_source)
+        return True
+    except InfeasibleSTN:
+        return False
+
+def interval_edges_for_choice(choice: ActivationChoice, x0: Node = "X0") -> List[Edge]:
+    """
+    Given a choice 'process starts in (left, right]', return the STN edges that enforce it.
+
+    - Enforce X_start <= right  via edge (X0 -> X_start, right)
+    - Enforce X_start >= left   via edge (X_start -> X0, -left)
+
+    If left is None, no lower bound.
+    If right is None, no upper bound.
+    """
+    xs = choice.start_node
+    extra: List[Edge] = []
+
+    if choice.right is not None:
+        extra.append(Edge(x0, xs, choice.right))
+
+    if choice.left is not None:
+        extra.append(Edge(xs, x0, -choice.left))
+
+    return extra
+
+def filter_unary_feasible_choices(nodes: List[Node], base_edges: List[Edge], choices: List[ActivationChoice], x0: Node = "X0",
+) -> List[ActivationChoice]:
+    """
+    Step 5: Unary conflicts check.
+    Keep only those choices lambda_{i,j} that remain feasible when their interval bounds are added.
+    """
+    kept: List[ActivationChoice] = []
+
+    for ch in choices:
+        extra_edges = interval_edges_for_choice(ch, x0=x0)
+        if is_stn_feasible(nodes, base_edges + extra_edges):
+            kept.append(ch)
+
+    return kept
+
+
+def build_binary_conflicts(
+    nodes: List[Node],
+    base_edges: List[Edge],
+    choices: List[ActivationChoice],
+    x0: Node = "X0",
+) -> Dict[int, Set[int]]:
+    """
+    Step 6: Binary conflicts.
+    conflict[a] contains b iff (choice a AND choice b) together makes STN infeasible.
+    We store conflicts by indices in the `choices` list.
+
+    NOTE: We skip pairs from the same process because Step 7 will enforce "choose 1 per process" anyway.
+    """
+    conflict: Dict[int, Set[int]] = {i: set() for i in range(len(choices))}
+
+    # Precompute interval edges for each choice so we don't rebuild them repeatedly
+    choice_edges: List[List[Edge]] = [interval_edges_for_choice(ch, x0=x0) for ch in choices]
+
+    for i in range(len(choices)):
+        for j in range(i + 1, len(choices)):
+            # same process: mutually exclusive by definition, not a feasibility conflict
+            if choices[i].proc_idx == choices[j].proc_idx:
+                continue
+
+            edges_ij = base_edges + choice_edges[i] + choice_edges[j]
+            if not is_stn_feasible(nodes, edges_ij):
+                conflict[i].add(j)
+                conflict[j].add(i)
+
+    return conflict
