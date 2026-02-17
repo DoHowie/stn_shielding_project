@@ -1,42 +1,41 @@
-from stn_opt_alg1 import *
-# test code
-# Step 1
-# constraints = [
-#     # Process P1 duration: Xe - Xs = 5  --> 5 <= Xe - Xs <= 5
-#     STNConstraint("P1_s", "P1_e", LB=5, UB=5),
-
-#     # Process P2 duration: 3
-#     STNConstraint("P2_s", "P2_e", LB=3, UB=3),
-
-#     # Precedence: P1 ends before P2 starts => P2_s - P1_e >= 0 (no upper bound -> use a large UB)
-#     STNConstraint("P1_e", "P2_s", LB=0, UB=1e9),
-# ]
-
-# nodes, edges = build_distance_graph(constraints)
-# nodes, edges = ensure_reference_node(nodes, edges, "X0")
-
-# d = all_pairs_shortest_paths(nodes, edges)  # raises InfeasibleSTN if infeasible
-# print("Feasible STN. Example distance d(P1_s, P2_s) =", d["P1_s"]["P2_s"])
-
-# # Step 2
-# landmarks = [10.0, 20.0]
-# prices = [0.10, 0.30, 0.15]  # (-inf,10], (10,20], (20,inf)
-# intervals = build_price_intervals(landmarks, prices)
-
-# print(intervals)
-# print(price_at(intervals, 9.0), price_at(intervals, 12.0), price_at(intervals, 100.0))
+from aaai18_alg1_1 import *
+from aaai18_alg2 import *
 
 
-# Example processes (must match your STN node names)
-processes = [
-    Process(name="P1", start="P1_s", end="P1_e", energy=2.0),
-    Process(name="P2", start="P2_s", end="P2_e", energy=1.5),
+constraints = [
+    # Durations
+    STNConstraint("S1", "E1", 4, 4),
+    STNConstraint("S2", "E2", 3, 3),
+    STNConstraint("S3", "E3", 5, 5),
+
+    # Sequential dependencies
+    STNConstraint("E1", "S2", 0, float("inf")),
+    STNConstraint("E2", "S3", 0, float("inf")),
 ]
 
-# Example intervals
-intervals = build_price_intervals([10.0, 20.0], [0.10, 0.30, 0.15])
+processes = [
+    Process("P1", "S1", "E1", 3),
+    Process("P2", "S2", "E2", 2),
+    Process("P3", "S3", "E3", 4),
+]
 
-choices = build_activation_choices(processes, intervals)
+landmarks = [5, 15]
+prices = [10, 2, 1]  # expensive, medium, cheap
 
-for c in choices:
-    print(c)
+
+schedule, makespan_T, cost = solve_alg2_cost_time_tradeoff(
+    constraints,
+    processes,
+    landmarks,
+    prices,
+    gamma=2.0,        # allow cost up to 2x optimal
+    T_low=0.0,
+    T_high=100.0,
+)
+
+print("\n=== Algorithm 2 Result ===")
+print("Makespan T:", makespan_T)
+print("Cost:", cost)
+print("Schedule:")
+for node, time in schedule.items():
+    print(node, "=", time)

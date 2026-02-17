@@ -224,11 +224,7 @@ def filter_unary_feasible_choices(nodes: List[Node], base_edges: List[Edge], cho
     return kept
 
 
-def build_binary_conflicts(
-    nodes: List[Node],
-    base_edges: List[Edge],
-    choices: List[ActivationChoice],
-    x0: Node = "X0",
+def build_binary_conflicts(nodes: List[Node], base_edges: List[Edge], choices: List[ActivationChoice], x0: Node = "X0",
 ) -> Dict[int, Set[int]]:
     """
     Step 6: Binary conflicts.
@@ -254,3 +250,5 @@ def build_binary_conflicts(
                 conflict[j].add(i)
 
     return conflict
+
+
