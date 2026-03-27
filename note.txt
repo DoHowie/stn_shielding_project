@@ -1,0 +1,5 @@
+1. Rewatch bellman ford
+2. poset_precedes
+3. MWIS problem
+4. Dinic
+5. bipartite max flow solve

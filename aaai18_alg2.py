@@ -5,9 +5,11 @@ from typing import Dict, List, Tuple, Optional
 
 from aaai18_alg1_1 import *
 
-def schedule_cost(schedule: Dict[str, float], processes: List[Process], landmarks: List[float], prices: List[float],
-) -> float:
-    """Compute total cost Σ Wi * f(τ(Xs_i)) from τ* returned by Alg1."""
+def schedule_cost(schedule: Dict[str, float], processes: List[Process], landmarks: List[float], prices: List[float]) -> float:
+    """
+    Input: schedule mapping process start nodes to start times, list of processes, price intervals
+    Output: total cost of the schedule, computed by summing energy * price for each process
+    """
     intervals = build_price_intervals(landmarks, prices)
     total = 0.0
     for p in processes:
